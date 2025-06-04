@@ -1,6 +1,12 @@
 // Chat.js
 import React, { useState, useEffect } from "react";
-import { View, Platform, KeyboardAvoidingView, StyleSheet } from "react-native";
+import {
+  View,
+  Platform,
+  KeyboardAvoidingView,
+  StyleSheet,
+  SafeAreaView,
+} from "react-native";
 import { GiftedChat } from "react-native-gifted-chat";
 
 const Chat = ({ route, navigation }) => {
@@ -11,7 +17,7 @@ const Chat = ({ route, navigation }) => {
   // Set the screen title messages
   useEffect(() => {
     navigation.setOptions({ title: name });
-
+    //initial messages when enter in chat room
     setMessages([
       {
         _id: 1,
@@ -25,7 +31,7 @@ const Chat = ({ route, navigation }) => {
         createdAt: new Date(),
         user: {
           _id: 2,
-          name: "React Native Bot",
+          name: "Chat Bot",
         },
       },
     ]);
@@ -39,28 +45,39 @@ const Chat = ({ route, navigation }) => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-      {/* Gifted Chat UI */}
-      <GiftedChat
-        messages={messages}
-        onSend={(messages) => onSend(messages)}
-        user={{
-          _id: 1,
-          name: name,
-        }}
-      />
-
-      {/* Prevent keyboard from covering input on iOS/Android */}
-      {Platform.OS === "android" || Platform.OS === "ios" ? (
-        <KeyboardAvoidingView behavior="padding" />
-      ) : null}
-    </View>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: bgColor || "#fff" }]}
+    >
+      {/*to stop keyboard overlapping textbox*/}
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
+      >
+        <View style={styles.chatWrapper}>
+          <GiftedChat
+            messages={messages}
+            onSend={onSend}
+            user={{ _id: 1, name: name }}
+            bottomOffset={Platform.OS === "android" ? 20 : 0}
+            placeholder="Type your message..."
+          />
+          <View style={styles.spacer} />
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  chatWrapper: {
+    flex: 1,
+  },
+  spacer: {
+    height: Platform.OS === "android" ? 10 : 10,
   },
 });
 
