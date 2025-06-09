@@ -6,7 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
 } from "react-native";
-import { GiftedChat, Composer } from "react-native-gifted-chat";
+import { GiftedChat } from "react-native-gifted-chat";
 import {
   collection,
   addDoc,
