@@ -6,7 +6,7 @@ import {
   StyleSheet,
   SafeAreaView,
 } from "react-native";
-import { GiftedChat } from "react-native-gifted-chat";
+import { GiftedChat, InputToolbar } from "react-native-gifted-chat";
 import {
   collection,
   addDoc,
@@ -14,41 +14,44 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const Chat = ({ route, navigation, db }) => {
+const Chat = ({ route, navigation, db, isConnected }) => {
   const { name, bgColor } = route.params;
 
   // State to store messages
   const [messages, setMessages] = useState([]);
 
-  // Set chat room screen title
+  // Set chat room screen title and load messages
   useEffect(() => {
     navigation.setOptions({ title: name });
 
-    //reference to messages collection
-    const messagesRef = collection(db, "messages");
-    const q = query(messagesRef, orderBy("createdAt", "desc"));
+    if (isConnected === true) {
+      const messagesRef = collection(db, "messages");
+      const q = query(messagesRef, orderBy("createdAt", "desc"));
 
-    //real time listener
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      let newMessages = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        newMessages.push({
-          _id: doc.id,
-          text: data.text,
-          createdAt: data.createdAt.toDate(),
-          user: data.user,
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        let newMessages = [];
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+          newMessages.push({
+            _id: doc.id,
+            text: data.text,
+            createdAt: data.createdAt.toDate(),
+            user: data.user,
+          });
         });
+        cacheMessages(newMessages);
+        setMessages(newMessages);
       });
-      setMessages(newMessages);
-    });
 
-    // Cleanup
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, []);
+      return () => {
+        if (unsubscribe) unsubscribe();
+      };
+    } else {
+      loadCachedMessages();
+    }
+  }, [isConnected]);
 
   // Write new messages to Firestore
   const onSend = async (newMessages = []) => {
@@ -58,6 +61,31 @@ const Chat = ({ route, navigation, db }) => {
       createdAt: msg.createdAt,
       user: msg.user,
     });
+  };
+
+  // Save messages locally
+  const cacheMessages = async (messagesToCache) => {
+    try {
+      await AsyncStorage.setItem("messages", JSON.stringify(messagesToCache));
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  // Load messages from local storage
+  const loadCachedMessages = async () => {
+    try {
+      const storedMessages = await AsyncStorage.getItem("messages");
+      if (storedMessages) setMessages(JSON.parse(storedMessages));
+    } catch (error) {
+      console.log(error.message);
+    }
+  };
+
+  // Hide input toolbar
+  const renderInputToolbar = (props) => {
+    if (isConnected) return <InputToolbar {...props} />;
+    else return null;
   };
 
   return (
@@ -76,6 +104,7 @@ const Chat = ({ route, navigation, db }) => {
             user={{ _id: name || 1, name: name }}
             bottomOffset={Platform.OS === "android" ? 20 : 0}
             placeholder="Type your message..."
+            renderInputToolbar={renderInputToolbar}
           />
           <View style={styles.spacer} />
         </View>
