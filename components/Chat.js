@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   StyleSheet,
   SafeAreaView,
+  Alert,
 } from "react-native";
 import { GiftedChat, InputToolbar } from "react-native-gifted-chat";
 import {
@@ -15,8 +16,10 @@ import {
   orderBy,
 } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import MapView from "react-native-maps";
+import CustomActions from "./CustomActions";
 
-const Chat = ({ route, navigation, db, isConnected }) => {
+const Chat = ({ route, navigation, db, isConnected, storage }) => {
   const { name, bgColor } = route.params;
 
   // State to store messages
@@ -36,9 +39,11 @@ const Chat = ({ route, navigation, db, isConnected }) => {
           const data = doc.data();
           newMessages.push({
             _id: doc.id,
-            text: data.text,
+            text: data.text || "",
             createdAt: data.createdAt.toDate(),
             user: data.user,
+            image: data.image || null,
+            location: data.location || null,
           });
         });
         cacheMessages(newMessages);
@@ -57,9 +62,11 @@ const Chat = ({ route, navigation, db, isConnected }) => {
   const onSend = async (newMessages = []) => {
     const msg = newMessages[0];
     await addDoc(collection(db, "messages"), {
-      text: msg.text,
+      text: msg.text || "",
       createdAt: msg.createdAt,
       user: msg.user,
+      image: msg.image || null,
+      location: msg.location || null,
     });
   };
 
@@ -88,14 +95,50 @@ const Chat = ({ route, navigation, db, isConnected }) => {
     else return null;
   };
 
+  // Render action button
+  const renderCustomActions = (props) => {
+    return (
+      <CustomActions
+        storage={storage}
+        onSend={onSend}
+        userID={name || "user"}
+        {...props}
+      />
+    );
+  };
+
+  // Render map
+  const renderCustomView = (props) => {
+    const { currentMessage } = props;
+    if (currentMessage.location) {
+      return (
+        <MapView
+          style={{
+            width: 150,
+            height: 100,
+            borderRadius: 13,
+            margin: 3,
+          }}
+          region={{
+            latitude: currentMessage.location.latitude,
+            longitude: currentMessage.location.longitude,
+            latitudeDelta: 0.0922,
+            longitudeDelta: 0.0421,
+          }}
+        />
+      );
+    }
+    return null;
+  };
+
   return (
-    <SafeAreaView
-      style={[styles.container, { backgroundColor: bgColor || "#fff" }]}
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 20}
     >
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 80 : 20}
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: bgColor || "#fff" }]}
       >
         <View style={styles.chatWrapper}>
           <GiftedChat
@@ -105,11 +148,13 @@ const Chat = ({ route, navigation, db, isConnected }) => {
             bottomOffset={Platform.OS === "android" ? 20 : 0}
             placeholder="Type your message..."
             renderInputToolbar={renderInputToolbar}
+            renderActions={renderCustomActions}
+            renderCustomView={renderCustomView}
           />
           <View style={styles.spacer} />
         </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 };
 
