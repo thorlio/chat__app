@@ -4,6 +4,7 @@ import { useActionSheet } from "@expo/react-native-action-sheet";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 
+// custom actions for images, camera location
 const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
   const actionSheet = useActionSheet();
 
@@ -38,6 +39,7 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
     );
   };
 
+  // choose images from device
   const pickImage = async () => {
     let permissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (permissions?.granted) {
@@ -59,6 +61,7 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
     }
   };
 
+  // open camera
   const takePhoto = async () => {
     let permissions = await ImagePicker.requestCameraPermissionsAsync();
     if (permissions?.granted) {
@@ -78,6 +81,7 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
     }
   };
 
+  // get location
   const getLocation = async () => {
     let permissions = await Location.requestForegroundPermissionsAsync();
     if (permissions?.granted) {
