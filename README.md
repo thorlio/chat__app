@@ -12,7 +12,7 @@ npm install -g expo-cli
 
 2. Clone the Repository
 
-git clone https://github.com/yourusername/chat__app.git
+git clone https://github.com/thorlio/chat__app.git
 
 ```bash
 cd chat__app
