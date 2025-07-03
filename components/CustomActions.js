@@ -1,12 +1,116 @@
 import React from "react";
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View, Alert } from "react-native";
 import { useActionSheet } from "@expo/react-native-action-sheet";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { Asset } from "expo-asset";
 
-// custom actions for images, camera location
-const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
+const CustomActions = ({
+  wrapperStyle,
+  iconTextStyle,
+  storage,
+  user,
+  onSend,
+}) => {
   const actionSheet = useActionSheet();
+
+  const generateStoragePath = (uri) => {
+    const timeStamp = new Date().getTime();
+    const fileName = uri.split("/").pop();
+    return `chat/${timeStamp}-${fileName}`;
+  };
+
+  const uploadAndSendImage = async (imageURI) => {
+    try {
+      console.log("Uploading image from URI:", imageURI);
+
+      const asset = Asset.fromURI(imageURI);
+      await asset.downloadAsync();
+      console.log("Asset localUri:", asset.localUri);
+
+      const response = await fetch(asset.localUri);
+      const blob = await response.blob();
+
+      console.log("blob type:", blob.type);
+      console.log("blob size:", blob.size);
+
+      const storagePath = generateStoragePath(imageURI);
+      console.log("STORAGE PATH for Firebase:", storagePath);
+
+      const imageRef = ref(storage, storagePath);
+
+      await uploadBytes(imageRef, blob, {
+        contentType: "image/jpeg",
+      });
+
+      const downloadURL = await getDownloadURL(imageRef);
+
+      console.log("Image uploaded. URL:", downloadURL);
+
+      onSend([
+        {
+          _id: new Date().getTime().toString(),
+          createdAt: new Date(),
+          user: user,
+          image: downloadURL,
+        },
+      ]);
+    } catch (error) {
+      console.error("Upload error full:", JSON.stringify(error, null, 2));
+      console.log("serverResponse:", error?.serverResponse);
+      Alert.alert("Upload Failed", error.message);
+    }
+  };
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission denied for image library.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync();
+    if (!result.canceled) {
+      await uploadAndSendImage(result.assets[0].uri);
+    }
+  };
+
+  const takePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission denied for camera.");
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync();
+    if (!result.canceled) {
+      await uploadAndSendImage(result.assets[0].uri);
+    }
+  };
+
+  const getLocation = async () => {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert("Permission denied for location.");
+      return;
+    }
+
+    const location = await Location.getCurrentPositionAsync({});
+    if (location) {
+      onSend([
+        {
+          _id: new Date().getTime().toString(),
+          createdAt: new Date(),
+          user: user,
+          location: {
+            longitude: location.coords.longitude,
+            latitude: location.coords.latitude,
+          },
+        },
+      ]);
+    }
+  };
 
   const onActionPress = () => {
     const options = [
@@ -18,94 +122,34 @@ const CustomActions = ({ wrapperStyle, iconTextStyle, onSend }) => {
     const cancelButtonIndex = options.length - 1;
 
     actionSheet.showActionSheetWithOptions(
-      {
-        options,
-        cancelButtonIndex,
-      },
+      { options, cancelButtonIndex },
       async (buttonIndex) => {
         switch (buttonIndex) {
           case 0:
-            pickImage();
-            return;
+            await pickImage();
+            break;
           case 1:
-            takePhoto();
-            return;
+            await takePhoto();
+            break;
           case 2:
-            getLocation();
-            return;
+            await getLocation();
+            break;
           default:
+            break;
         }
       }
     );
   };
 
-  // choose images from device
-  const pickImage = async () => {
-    let permissions = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (permissions?.granted) {
-      let result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      });
-      if (!result.canceled) {
-        onSend([
-          {
-            _id: new Date().getTime(),
-            createdAt: new Date(),
-            user: { _id: 1 },
-            image: result.assets[0].uri,
-          },
-        ]);
-      }
-    } else {
-      Alert.alert("Permission to access gallery was denied");
-    }
-  };
-
-  // open camera
-  const takePhoto = async () => {
-    let permissions = await ImagePicker.requestCameraPermissionsAsync();
-    if (permissions?.granted) {
-      let result = await ImagePicker.launchCameraAsync();
-      if (!result.canceled) {
-        onSend([
-          {
-            _id: new Date().getTime(),
-            createdAt: new Date(),
-            user: { _id: 1 },
-            image: result.assets[0].uri,
-          },
-        ]);
-      }
-    } else {
-      Alert.alert("Permission to access camera was denied");
-    }
-  };
-
-  // get location
-  const getLocation = async () => {
-    let permissions = await Location.requestForegroundPermissionsAsync();
-    if (permissions?.granted) {
-      const location = await Location.getCurrentPositionAsync({});
-      if (location) {
-        onSend([
-          {
-            _id: new Date().getTime(),
-            createdAt: new Date(),
-            user: { _id: 1 },
-            location: {
-              latitude: location.coords.latitude,
-              longitude: location.coords.longitude,
-            },
-          },
-        ]);
-      }
-    } else {
-      Alert.alert("Permission to access location was denied");
-    }
-  };
-
   return (
-    <TouchableOpacity style={styles.container} onPress={onActionPress}>
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onActionPress}
+      accessible={true}
+      accessibilityLabel="More actions"
+      accessibilityHint="Send an image or location"
+      accessibilityRole="button"
+    >
       <View style={[styles.wrapper, wrapperStyle]}>
         <Text style={[styles.iconText, iconTextStyle]}>+</Text>
       </View>
@@ -125,11 +169,13 @@ const styles = StyleSheet.create({
     borderColor: "#b2b2b2",
     borderWidth: 2,
     flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
   iconText: {
     color: "#b2b2b2",
     fontWeight: "bold",
-    fontSize: 10,
+    fontSize: 16,
     backgroundColor: "transparent",
     textAlign: "center",
   },

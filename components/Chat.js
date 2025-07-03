@@ -20,7 +20,7 @@ import MapView from "react-native-maps";
 import CustomActions from "./CustomActions";
 
 const Chat = ({ route, navigation, db, isConnected, storage }) => {
-  const { name, bgColor } = route.params;
+  const { name, bgColor, userID } = route.params;
 
   // State to store messages
   const [messages, setMessages] = useState([]);
@@ -99,10 +99,10 @@ const Chat = ({ route, navigation, db, isConnected, storage }) => {
   const renderCustomActions = (props) => {
     return (
       <CustomActions
+        {...props}
+        user={{ _id: userID, name }}
         storage={storage}
         onSend={onSend}
-        userID={name || "user"}
-        {...props}
       />
     );
   };
@@ -135,7 +135,7 @@ const Chat = ({ route, navigation, db, isConnected, storage }) => {
     <KeyboardAvoidingView
       style={{ flex: 1 }}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 20}
+      keyboardVerticalOffset={0}
     >
       <SafeAreaView
         style={[styles.container, { backgroundColor: bgColor || "#fff" }]}
@@ -144,14 +144,15 @@ const Chat = ({ route, navigation, db, isConnected, storage }) => {
           <GiftedChat
             messages={messages}
             onSend={onSend}
-            user={{ _id: name || 1, name: name }}
-            bottomOffset={Platform.OS === "android" ? 20 : 0}
+            user={{ _id: userID, name }}
+            bottomOffset={0}
             placeholder="Type your message..."
             renderInputToolbar={renderInputToolbar}
             renderActions={renderCustomActions}
             renderCustomView={renderCustomView}
           />
-          <View style={styles.spacer} />
+
+          {/* <View style={styles.spacer} /> */}
         </View>
       </SafeAreaView>
     </KeyboardAvoidingView>
@@ -165,9 +166,9 @@ const styles = StyleSheet.create({
   chatWrapper: {
     flex: 1,
   },
-  spacer: {
-    height: Platform.OS === "android" ? 10 : 10,
-  },
+  // spacer: {
+  //   height: Platform.OS === "android" ? 10 : 10,
+  // },
 });
 
 export default Chat;
